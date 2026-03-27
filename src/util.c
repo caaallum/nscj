@@ -3,8 +3,8 @@
 #include "util.h"
 
 //==========================================================
-void
-tchar_to_utf8(const TCHAR* src, char* dst, int max) {
+VOID
+tchar_to_utf8(_In_ const TCHAR* src, _Out_ LPSTR dst, _In_ INT max) {
 #ifdef UNICODE
     WideCharToMultiByte(CP_UTF8, 0, src, -1, dst, max, NULL, NULL);
 #else
@@ -13,8 +13,8 @@ tchar_to_utf8(const TCHAR* src, char* dst, int max) {
 }
 
 //==========================================================
-void
-utf8_to_tchar(const char* src, TCHAR* dst, int max) {
+VOID
+utf8_to_tchar(_In_ LPCSTR src, _Out_ TCHAR* dst, _In_ INT max) {
 #ifdef UNICODE
     MultiByteToWideChar(CP_UTF8, 0, src, -1, dst, max);
 #else
@@ -23,8 +23,8 @@ utf8_to_tchar(const char* src, TCHAR* dst, int max) {
 }
 
 //==========================================================
-void
-tchar_to_wchar(const TCHAR* src, wchar_t* dst, int max) {
+VOID
+tchar_to_wchar(_In_ LPCTSTR src, _Out_ LPWSTR dst, _In_ INT max) {
 #ifdef UNICODE
     (void)lstrcpyn(dst, src, max);
 #else
@@ -34,7 +34,7 @@ tchar_to_wchar(const TCHAR* src, wchar_t* dst, int max) {
 
 //==========================================================
 BOOL
-is_number(const TCHAR* str) {
+is_number(_In_ LPCTSTR str) {
     if (!str || !*str) return 0;
 
     for (int i = 0; str[i]; i++) {

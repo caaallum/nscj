@@ -14,6 +14,6 @@
  * 
  * \returns TRUE on success
  **********************************************************/
-BOOL http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR* body, _In_ TCHAR* username, _In_ TCHAR* password, _Out_ TCHAR** response);
+_Success_(return) BOOL http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR* body, _In_ TCHAR* username, _In_ TCHAR* password, _Out_ TCHAR** response);
 
 #endif /* __NSCJ_HTTP_H */

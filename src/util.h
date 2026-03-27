@@ -8,7 +8,7 @@
  * \param dst Destination char*
  * \param max Max length
  **********************************************************/
-void tchar_to_utf8(const TCHAR* src, char* dst, int max);
+VOID tchar_to_utf8(_In_ const TCHAR* src, _Out_ LPSTR dst, _In_ INT max);
 
 /**********************************************************
  * \brief Convert utf8 to TCHAR
@@ -17,7 +17,7 @@ void tchar_to_utf8(const TCHAR* src, char* dst, int max);
  * \param dst Destination TCHAR
  * \param max Max length
  **********************************************************/
-void utf8_to_tchar(const char* src, TCHAR* dst, int max);
+VOID utf8_to_tchar(_In_ LPCSTR src, _Out_ TCHAR* dst, _In_ INT max);
 
 /**********************************************************
  * \brief Convert TCHAR to wchar_t
@@ -26,7 +26,7 @@ void utf8_to_tchar(const char* src, TCHAR* dst, int max);
  * \param dst Destination tchar_t
  * \param max Max length
  **********************************************************/
-void tchar_to_wchar(const TCHAR* src, wchar_t* dst, int max);
+VOID tchar_to_wchar(_In_ LPCTSTR src, _Out_ LPWSTR dst, _In_ INT max);
 
 /**********************************************************
  * \brief Check if string is anumber
@@ -35,6 +35,6 @@ void tchar_to_wchar(const TCHAR* src, wchar_t* dst, int max);
  * 
  * \returns BOOL true if number false otherwise
  **********************************************************/
-BOOL is_number(const TCHAR* str);
+BOOL is_number(_In_ LPCTSTR str);
 
 #endif /* __NSCJ_UTIL_H */

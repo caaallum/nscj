@@ -38,7 +38,11 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake -S . -B build -DUNICODE=${{ matrix.unicode }} -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} -A ${{ matrix.arch }} 
+        run: cmake -S . -B build ^
+          -DUNICODE=${{ matrix.unicode }} ^
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ^
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake ^
+          -A ${{ matrix.arch }}
 
       - name: Build
         run: cmake --build build --config Release
