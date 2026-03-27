@@ -1,0 +1,5 @@
+out/
+example.exe
+.vs/
+build/
+CMakeSettings.json
