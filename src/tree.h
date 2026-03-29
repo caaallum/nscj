@@ -3,7 +3,15 @@
 
 typedef struct tree_t tree_t;
 
-static tree_t *g_trees = NULL;
+/**********************************************************
+ * \brief Init tree node
+ * 
+ * \param name Name of node
+ * \param root cJSON structure to set
+ * 
+ * \return tree_t* newly created node
+ **********************************************************/
+tree_t* tree_node_init(_In_ LPCTSTR name, _In_ cJSON* root);
 
 /**********************************************************
  * \brief Find tree of given name

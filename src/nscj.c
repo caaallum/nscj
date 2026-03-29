@@ -66,7 +66,7 @@ NSISFUNC(Set) {
             popstring(arg);
             int len = lstrlen(arg) + 1;
             json = (TCHAR*)GlobalAlloc(GPTR, len);
-            tchar_to_utf8(arg, json, string_size);
+            lstrcpy(json, arg);
             useBuffer = TRUE;
         }
         //else if (lstrcmpi(arg, TEXT("/file")) == 0) {
@@ -133,7 +133,6 @@ NSISFUNC(Set) {
         goto cleanup;
     }
 
-    char *json_string_printed = cJSON_PrintUnformatted(root);
     tree_set(tree_name, root);
 
     pushstring(TEXT("1"));
@@ -238,4 +237,9 @@ cleanup:
 BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ul_reason_for_call, LPVOID lpReserved) {
   g_hInstance = hInst;
   return TRUE;
+}
+
+void __declspec(dllexport) Unload(HWND a, int b, TCHAR* c, stack_t** d, extra_parameters* e) {
+    // Free your linked list here
+    tree_clear();
 }
