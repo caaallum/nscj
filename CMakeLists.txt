@@ -53,6 +53,8 @@ foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
 endforeach()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    find_package(cmocka CONFIG REQUIRED)
+
     set(TEST_SRC
         test/main.c
  
@@ -66,10 +68,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
  
     add_executable(nscj_test ${TEST_SRC})
  
-    target_link_libraries(nscj_test PRIVATE cjson user32 winhttp)
+    target_link_libraries(nscj_test PRIVATE cjson user32 winhttp cmocka::cmocka)
  
     target_include_directories(nscj_test PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}          # so "nsis/pluginapi.h" resolves
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/nsis
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
@@ -78,11 +80,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         target_compile_definitions(nscj_test PRIVATE UNICODE _UNICODE)
     endif()
  
-    # Mirror the same output-directory logic as the DLL
     foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
         string(TOUPPER ${CONFIG} CONFIG_UPPER)
         set_target_properties(nscj_test PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/${OUTPUT_PATH}
         )
-endforeach()
+    endforeach()
 endif()

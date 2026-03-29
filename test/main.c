@@ -1,6 +1,13 @@
+#include <stddef.h>   // for size_t
+#include <stdarg.h>   // for va_list
+#include <setjmp.h>   // for setjmp/longjmp
+#define CMOCKA_STATIC 1
+#include <cmocka.h>
+
 #include <windows.h>
 #include <stdio.h>
 #include "../nsis/pluginapi.h"
+#include "../src/util.h"
 
 #define TEST_STRING_SIZE 1024
 
@@ -17,8 +24,7 @@ dump_stack(void) {
     stack_t* p = *g_stacktop;
     int i = 0;
     _tprintf(_T("  -- stack (top first) --\n"));
-    while (p)
-    {
+    while (p) {
         _tprintf(_T("  [%d] \"%s\"\n"), i++, p->text);
         p = p->next;
     }
@@ -67,7 +73,7 @@ reset(void) {
 }
 
 // -----------------------------------------------------------------------
-// Forward-declare the plugin functions you want to test.
+// Forward-declare nscj functions
 // -----------------------------------------------------------------------
 
 // Example – replace with the real names from nscj.c
@@ -84,98 +90,165 @@ extern void __cdecl Set(HWND hwndParent, int string_size,
     fn(NULL, TEST_STRING_SIZE, g_variables, g_stacktop, NULL)
 
 // -----------------------------------------------------------------------
+// String comparison wrapper for cmocka
+// -----------------------------------------------------------------------
+#define assert_tchar_equal(expected, actual)           \
+    do {                                              \
+        CHAR exp_utf8[TEST_STRING_SIZE];                \
+        CHAR act_utf8[TEST_STRING_SIZE];                \
+        tchar_to_utf8(expected, exp_utf8, TEST_STRING_SIZE); \
+        tchar_to_utf8(actual, act_utf8, TEST_STRING_SIZE);   \
+        assert_string_equal(exp_utf8, act_utf8);     \
+    } while(0)
+
+// -----------------------------------------------------------------------
 // Individual tests
 // -----------------------------------------------------------------------
 
-static void 
-test_set_and_get(void) {
+static void
+test_url_set_get_default(void** state) {
     TCHAR result[TEST_STRING_SIZE];
-
-    _tprintf(_T("\n=== test_set_and_get ===\n"));
     reset();
 
-    // Simulate:  nscj::Set "myKey" "myValue"
+    // Set json 
+    pushstring(_T("https://jsonplaceholder.typicode.com/users/1"));
+    pushstring(_T("/url"));
+
+    CALL_PLUGIN(Set);
+    popstring(result);
+
+    assert_tchar_equal(result, _T("1"));
+
+    // Get name
+    pushstring(_T("name"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Leanne Graham"));
+
+    // Get email
+    pushstring(_T("email"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Sincere@april.biz"));
+}
+
+static void
+test_url_set_get_single_tree(void** state) {
+    TCHAR result[TEST_STRING_SIZE];
+    reset();
+
+    // Set json 
+    pushstring(_T("https://jsonplaceholder.typicode.com/users/1"));
+    pushstring(_T("/url"));
+    pushstring(_T("tree1"));
+    pushstring(_T("/tree"));
+
+    CALL_PLUGIN(Set);
+    popstring(result);
+
+    assert_tchar_equal(result, _T("1"));
+
+    // Get name
+    pushstring(_T("name"));
+    pushstring(_T("tree1"));
+    pushstring(_T("/tree"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Leanne Graham"));
+
+    // Get email
+    pushstring(_T("email"));
+    pushstring(_T("tree1"));
+    pushstring(_T("/tree"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Sincere@april.biz"));
+}
+
+static void
+test_url_set_get_multi_tree(void** state) {
+    TCHAR result[TEST_STRING_SIZE];
+    reset();
+
+    // Set user1 json 
     pushstring(_T("https://jsonplaceholder.typicode.com/users/1"));
     pushstring(_T("/url"));
     pushstring(_T("user1"));
     pushstring(_T("/tree"));
-
-    _tprintf(_T("Before Set:\n"));
-    dump_stack();
-
     CALL_PLUGIN(Set);
     popstring(result);
-    _tprintf(_T("After Set:\n"));
-    dump_stack();
-    dump_vars();
+    assert_tchar_equal(result, _T("1"));
 
-    // Simulate:  nscj::Get "myKey"
+    // Set user2 json
+    pushstring(_T("https://jsonplaceholder.typicode.com/users/2"));
+    pushstring(_T("/url"));
+    pushstring(_T("user2"));
+    pushstring(_T("/tree"));
+    CALL_PLUGIN(Set);
+    popstring(result);
+    assert_tchar_equal(result, _T("1"));
+
+    // Get user1 name
     pushstring(_T("name"));
     pushstring(_T("user1"));
     pushstring(_T("/tree"));
-
-    _tprintf(_T("Before Get:\n"));
-    dump_stack();
-
     CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Leanne Graham"));
 
-    _tprintf(_T("After Get:\n"));
-    dump_stack();
+    // Get user1 email
+    pushstring(_T("email"));
+    pushstring(_T("user1"));
+    pushstring(_T("/tree"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Sincere@april.biz"));
 
-    // The plugin should have pushed the result
-    if (popstring(result) == 0)
-        _tprintf(_T("  Result = \"%s\"\n"), result);
-    else
-        _tprintf(_T("  ERROR: stack was empty after Get\n"));
+    // Get user2 name
+    pushstring(_T("name"));
+    pushstring(_T("user2"));
+    pushstring(_T("/tree"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Ervin Howell"));
+
+    // Get user2 email
+    pushstring(_T("email"));
+    pushstring(_T("user2"));
+    pushstring(_T("/tree"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("Shanna@melissa.tv"));
 }
-//
-//static void test_get_missing_key(void)
-//{
-//    TCHAR result[TEST_STRING_SIZE];
-//
-//    _tprintf(_T("\n=== test_get_missing_key ===\n"));
-//    reset();
-//
-//    push(_T("nonExistentKey"));
-//    CALL_PLUGIN(Get);
-//
-//    if (pop(result) == 0)
-//        _tprintf(_T("  Result = \"%s\" (expected empty or error token)\n"), result);
-//    else
-//        _tprintf(_T("  Stack empty after Get on missing key\n"));
-//}
-//
-//static void test_variable_roundtrip(void)
-//{
-//    _tprintf(_T("\n=== test_variable_roundtrip ===\n"));
-//    reset();
-//
-//    // Write directly to $R0 and read it back
-//    setuservariable(INST_R0, _T("hello from $R0"));
-//    _tprintf(_T("  $R0 = \"%s\"\n"), getuservariable(INST_R0));
-//
-//    // Overwrite via the plugin path – push a new value and ask the
-//    // plugin to store it, then read $R0 again
-//    push(_T("updated value"));
-//    push(_T("R0_key"));
-//    CALL_PLUGIN(Set);
-//    dump_vars();
-//}
 
-// -----------------------------------------------------------------------
-// Entry point
-// -----------------------------------------------------------------------
+static void
+test_buffer_set_get_default(void** state) {
+    TCHAR result[TEST_STRING_SIZE];
+    reset();
+
+    // Set json
+    pushstring(_T("{\"type\": \"buffer\"}"));
+    pushstring(_T("/buffer"));
+
+    CALL_PLUGIN(Set);
+    popstring(result);
+
+    assert_tchar_equal(result, _T("1"));
+
+    pushstring(_T("type"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("buffer"));
+}
 
 int 
 main(void) {
-    _tprintf(_T("NSIS plugin test harness\n"));
-    _tprintf(_T("string_size = %u  |  __INST_LAST = %d\n"),
-        TEST_STRING_SIZE, __INST_LAST);
+    const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_url_set_get_default),
+        cmocka_unit_test(test_url_set_get_single_tree),
+        cmocka_unit_test(test_url_set_get_multi_tree),
+        cmocka_unit_test(test_buffer_set_get_default),
+    };
 
-    test_set_and_get();
-    //test_get_missing_key();
-    //test_variable_roundtrip();
-
-    _tprintf(_T("\nDone.\n"));
-    return 0;
+    return cmocka_run_group_tests(tests, NULL, NULL);
 }
