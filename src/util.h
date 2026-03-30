@@ -37,4 +37,15 @@ VOID tchar_to_wchar(_In_ LPCTSTR src, _Out_ LPWSTR dst, _In_ INT max);
  **********************************************************/
 BOOL is_number(_In_ LPCTSTR str);
 
+/**********************************************************
+ * \brief Read file content into buffer
+ * 
+ * \param filename File to read
+ * \param buffer Buffer to read into
+ * \param outlength Length of buffer read
+ * 
+ * \return BOOL true if success false otherwise
+ **********************************************************/
+BOOL read_file(_In_ LPCTSTR filename, _Out_ PTCHAR buffer, _Out_ LPDWORD outlength);
+
 #endif /* __NSCJ_UTIL_H */
