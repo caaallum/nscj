@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <stdio.h>
 #include <nsis/pluginapi.h>
 #include <cjson/cJSON.h>
 
@@ -69,18 +70,55 @@ NSISFUNC(Set) {
             lstrcpy(json, arg);
             useBuffer = TRUE;
         }
-        //else if (lstrcmpi(arg, TEXT("/file")) == 0) {
-        //    popstring(arg);
+        else if (lstrcmpi(arg, TEXT("/file")) == 0) {
+            popstring(arg);
 
-        //    FILE* f = _tfopen(arg, TEXT("rb"));
-        //    if (!f) continue;
+            HANDLE hFile = CreateFile(
+                arg,
+                GENERIC_READ,
+                FILE_SHARE_READ,
+                NULL,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                NULL
+            );
 
-        //    int len = fread(json, 1, string_size - 1, f);
-        //    json[len] = 0;
-        //    fclose(f);
+            if (hFile == INVALID_HANDLE_VALUE) {
+                MessageBox(NULL, TEXT("Failed to read file"), TEXT("Error"), MB_OK);
+                continue;
+            }
 
-        //    useFile = TRUE;
-        //}
+            // Get file size
+            LARGE_INTEGER size;
+            if (!GetFileSizeEx(hFile, &size)) {
+                MessageBox(NULL, TEXT("Failed to get file size"), TEXT("Error"), MB_OK);
+                CloseHandle(hFile);
+                return 1;
+            }
+
+            // Allocate memory (movable or fixed)
+            json = GlobalAlloc(GMEM_FIXED, (size.QuadPart + 1) * sizeof(TCHAR));
+            if (!json) {
+                CloseHandle(hFile);
+                MessageBox(NULL, TEXT("Failed to allocate buffer"), TEXT("Error"), MB_OK);
+                return 1;
+            }
+
+            // Read file
+            DWORD bytesRead = 0;
+            if (!ReadFile(hFile, json, (DWORD)size.QuadPart, &bytesRead, NULL)) {
+                CloseHandle(hFile);
+                MessageBox(NULL, TEXT("Failed to read file"), TEXT("Error"), MB_OK);
+                continue;
+            }
+
+            json[bytesRead / sizeof(TCHAR)] = TEXT('\0');
+
+            MessageBox(NULL, json, TEXT("json"), MB_OK);
+            CloseHandle(hFile);
+
+            useFile = TRUE;
+        }
         else if (lstrcmpi(arg, TEXT("/url")) == 0) {
             popstring(arg);
             lstrcpy(url, arg);
