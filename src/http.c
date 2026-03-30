@@ -3,7 +3,8 @@
 
 #include "http.h"
 
-BOOL 
+//==========================================================
+BOOL
 http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR* body, _In_ TCHAR* username, _In_ TCHAR* password, _Out_ TCHAR** response) {
     for (int redirect = 0; redirect < 5; redirect++) {
         URL_COMPONENTS parts = { 0 };
