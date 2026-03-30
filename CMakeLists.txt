@@ -16,6 +16,8 @@ file(GLOB SRC
     src/http.c
     src/util.h
     src/util.c
+    src/tree.h
+    src/tree.c
     src/nscj.c
 )
 
@@ -49,3 +51,39 @@ foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
             RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/${OUTPUT_PATH}
     )
 endforeach()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    find_package(cmocka CONFIG REQUIRED)
+
+    set(TEST_SRC
+        test/main.c
+ 
+        nsis/pluginapi.c
+ 
+        src/http.c
+        src/util.c
+        src/tree.c
+        src/nscj.c
+    )
+ 
+    add_executable(nscj_test ${TEST_SRC})
+ 
+    target_link_libraries(nscj_test PRIVATE cjson user32 winhttp cmocka::cmocka)
+ 
+    target_include_directories(nscj_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/nsis
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+ 
+    if (UNICODE)
+        target_compile_definitions(nscj_test PRIVATE UNICODE _UNICODE)
+    endif()
+ 
+    foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
+        string(TOUPPER ${CONFIG} CONFIG_UPPER)
+        set_target_properties(nscj_test PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/${OUTPUT_PATH}
+        )
+    endforeach()
+endif()

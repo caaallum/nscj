@@ -4,6 +4,7 @@
 
 #include "util.h"
 #include "http.h"
+#include "tree.h"
 
 #define NSISFUNC(_name) void __declspec(dllexport) _name(HWND hWndParent, int string_size, TCHAR* variables, stack_t** stacktop, extra_parameters* extra)
 
@@ -40,6 +41,8 @@ NSISFUNC(Set) {
     PTCHAR arg = (PTCHAR)GlobalAlloc(GPTR, sizeof(TCHAR) * string_size);
     TCHAR* json = NULL;
 
+    TCHAR tree_name[64] = TEXT("default");
+
     TCHAR url[2048] = { 0 };
     TCHAR method[16] = TEXT("GET");
     TCHAR headers[4096] = { 0 };
@@ -55,11 +58,15 @@ NSISFUNC(Set) {
         return;
 
     while (popstring(arg) == 0) {
-        if (lstrcmpi(arg, TEXT("/buffer")) == 0) {
+        if (lstrcmpi(arg, TEXT("/tree")) == 0) {
+            popstring(arg);
+            lstrcpy(tree_name, arg);
+        }
+        else if (lstrcmpi(arg, TEXT("/buffer")) == 0) {
             popstring(arg);
             int len = lstrlen(arg) + 1;
             json = (TCHAR*)GlobalAlloc(GPTR, len);
-            tchar_to_utf8(arg, json, string_size);
+            lstrcpy(json, arg);
             useBuffer = TRUE;
         }
         //else if (lstrcmpi(arg, TEXT("/file")) == 0) {
@@ -119,51 +126,54 @@ NSISFUNC(Set) {
     }
 
     cJSON* root = cJSON_ParseT(json);
+    //free(json);
+
     if (!root) {
-        GlobalFree(json);
         pushstring(TEXT("0"));
         goto cleanup;
     }
-    setuservariable(INST_R0, json);
+
+    tree_set(tree_name, root);
 
     pushstring(TEXT("1"));
 
 cleanup:
     GlobalFree(arg);
-    GlobalFree(json);
 }
 
 
 NSISFUNC(Get) {
     EXDLL_INIT();
 
-    PTCHAR jsonT = getuservariable(INST_R0);
-
-    if (!jsonT[0]) {
-        GlobalFree(jsonT);
-        pushstring(TEXT(""));
-        return;
-    }
-
-    cJSON* root = cJSON_ParseT(jsonT);
-    if (!root) {
-        GlobalFree(jsonT);
-        pushstring(TEXT(""));
-        return;
-    }
-
-    cJSON* node = root;
+    TCHAR tree_name[64] = TEXT("default");
 
     PTCHAR arg = (PTCHAR)GlobalAlloc(GPTR, sizeof(TCHAR) * string_size);
     char* key = (char*)GlobalAlloc(GPTR, string_size);
 
     if (!arg || !key) {
-        cJSON_Delete(root);
-        GlobalFree(jsonT);
         if (arg) GlobalFree(arg);
         if (key) GlobalFree(key);
         pushstring(TEXT(""));
         return;
+    }
+
+    // First pass: check for /tree
+    while (popstring(arg) == 0) {
+        if (lstrcmpi(arg, TEXT("/tree")) == 0) {
+            popstring(arg);
+            lstrcpy(tree_name, arg);
+        }
+        else {
+            pushstring(arg);
+            break;
+        }
+    }
+
+    cJSON* node = tree_get_root(tree_name);
+
+    if (!node) {
+        pushstring(TEXT(""));
+        goto cleanup;
     }
 
     while (popstring(arg) == 0) {
@@ -219,8 +229,7 @@ NSISFUNC(Get) {
     }
 
     // cleanup
-    cJSON_Delete(root);
-    GlobalFree(jsonT);
+cleanup:
     GlobalFree(arg);
     GlobalFree(key);
 }
@@ -228,4 +237,9 @@ NSISFUNC(Get) {
 BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ul_reason_for_call, LPVOID lpReserved) {
   g_hInstance = hInst;
   return TRUE;
+}
+
+void __declspec(dllexport) Unload(HWND a, int b, TCHAR* c, stack_t** d, extra_parameters* e) {
+    // Free your linked list here
+    tree_clear();
 }
