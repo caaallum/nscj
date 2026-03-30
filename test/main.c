@@ -241,6 +241,29 @@ test_buffer_set_get_default(void** state) {
     assert_tchar_equal(result, _T("buffer"));
 }
 
+static void
+test_file_set_get_default(void** state) {
+    TCHAR result[TEST_STRING_SIZE];
+    reset();
+
+    FILE* f = _tfopen(_T("test.json"), _T("w"));
+    _fputts(_T("{\"type\": \"file\"}"), f);
+    fclose(f);
+
+    pushstring(_T("test.json"));
+    pushstring(_T("/file"));
+
+    CALL_PLUGIN(Set);
+    popstring(result);
+
+    assert_tchar_equal(result, _T("1"));
+
+    pushstring(_T("type"));
+    CALL_PLUGIN(Get);
+    popstring(result);
+    assert_tchar_equal(result, _T("file"));
+}
+
 int 
 main(void) {
     const struct CMUnitTest tests[] = {
@@ -248,6 +271,7 @@ main(void) {
         cmocka_unit_test(test_url_set_get_single_tree),
         cmocka_unit_test(test_url_set_get_multi_tree),
         cmocka_unit_test(test_buffer_set_get_default),
+        cmocka_unit_test(test_file_set_get_default),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);
