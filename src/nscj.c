@@ -73,49 +73,10 @@ NSISFUNC(Set) {
         else if (lstrcmpi(arg, TEXT("/file")) == 0) {
             popstring(arg);
 
-            HANDLE hFile = CreateFile(
-                arg,
-                GENERIC_READ,
-                FILE_SHARE_READ,
-                NULL,
-                OPEN_EXISTING,
-                FILE_ATTRIBUTE_NORMAL,
-                NULL
-            );
-
-            if (hFile == INVALID_HANDLE_VALUE) {
-                MessageBox(NULL, TEXT("Failed to read file"), TEXT("Error"), MB_OK);
+            DWORD outlength = 0;
+            if (!read_file(arg, &json, &outlength)) {
                 continue;
             }
-
-            // Get file size
-            LARGE_INTEGER size;
-            if (!GetFileSizeEx(hFile, &size)) {
-                MessageBox(NULL, TEXT("Failed to get file size"), TEXT("Error"), MB_OK);
-                CloseHandle(hFile);
-                return 1;
-            }
-
-            // Allocate memory (movable or fixed)
-            json = GlobalAlloc(GMEM_FIXED, (size.QuadPart + 1) * sizeof(TCHAR));
-            if (!json) {
-                CloseHandle(hFile);
-                MessageBox(NULL, TEXT("Failed to allocate buffer"), TEXT("Error"), MB_OK);
-                return 1;
-            }
-
-            // Read file
-            DWORD bytesRead = 0;
-            if (!ReadFile(hFile, json, (DWORD)size.QuadPart, &bytesRead, NULL)) {
-                CloseHandle(hFile);
-                MessageBox(NULL, TEXT("Failed to read file"), TEXT("Error"), MB_OK);
-                continue;
-            }
-
-            json[bytesRead / sizeof(TCHAR)] = TEXT('\0');
-
-            MessageBox(NULL, json, TEXT("json"), MB_OK);
-            CloseHandle(hFile);
 
             useFile = TRUE;
         }
