@@ -44,16 +44,7 @@ NSISFUNC(Set) {
 
     TCHAR tree_name[64] = TEXT("default");
 
-    TCHAR url[2048] = { 0 };
-    TCHAR method[16] = TEXT("GET");
-    TCHAR headers[4096] = { 0 };
-    TCHAR username[256] = { 0 };
-    TCHAR password[256] = { 0 };
-    TCHAR body[4096] = { 0 };
-
-    BOOL useBuffer = FALSE;
-    BOOL useFile = FALSE;
-    BOOL useUrl = FALSE;
+    http_config_t* http_config = http_config_new();
 
     if (!arg)
         return;
@@ -68,7 +59,6 @@ NSISFUNC(Set) {
             int len = lstrlen(arg) + 1;
             json = (TCHAR*)GlobalAlloc(GPTR, len);
             lstrcpy(json, arg);
-            useBuffer = TRUE;
         }
         else if (lstrcmpi(arg, TEXT("/file")) == 0) {
             popstring(arg);
@@ -77,42 +67,35 @@ NSISFUNC(Set) {
             if (!read_file(arg, &json, &outlength)) {
                 continue;
             }
-
-            useFile = TRUE;
         }
         else if (lstrcmpi(arg, TEXT("/url")) == 0) {
             popstring(arg);
-            lstrcpy(url, arg);
-            useUrl = TRUE;
+            http_config_set_url(http_config, arg);
         }
         else if (lstrcmpi(arg, TEXT("/method")) == 0) {
             popstring(arg);
-            lstrcpy(method, arg);
+            http_config_set_method(http_config, arg);
         }
         else if (lstrcmpi(arg, TEXT("/body")) == 0) {
             popstring(arg);
-            lstrcpy(body, arg);
+            http_config_set_body(http_config, arg);
         }
         else if (lstrcmpi(arg, TEXT("/header")) == 0) {
             popstring(arg);
-            lstrcat(headers, arg);
-            lstrcat(headers, L"\r\n");
+            http_config_set_headers(http_config, arg);
         }
         else if (lstrcmpi(arg, TEXT("/user")) == 0) {
             popstring(arg);
-            lstrcpy(username, arg);
+            http_config_set_username(http_config, arg);
         }
         else if (lstrcmpi(arg, TEXT("/pass")) == 0) {
             popstring(arg);
-            lstrcpy(password, arg);
+            http_config_set_password(http_config, arg);
         }
     }
 
-    if (useUrl) {
-        if (!http_fetch(url, method, headers,
-            body[0] ? body: NULL,
-            username, password,
-            &json)) {
+    if (http_config->url) {
+        if (!http_fetch(http_config, &json)) {
             pushstring(TEXT("0"));
             goto cleanup;
         }
@@ -137,6 +120,7 @@ NSISFUNC(Set) {
     pushstring(TEXT("1"));
 
 cleanup:
+    http_config_free(http_config);
     GlobalFree(arg);
 }
 

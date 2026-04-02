@@ -1,11 +1,12 @@
 #include <Windows.h>
 #include <winhttp.h>
+#include <assert.h>
 
 #include "http.h"
 
 //==========================================================
 BOOL
-http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR* body, _In_ TCHAR* username, _In_ TCHAR* password, _Out_ TCHAR** response) {
+http_fetch(_In_ http_config_t* config, _Out_ TCHAR** response) {
     for (int redirect = 0; redirect < 5; redirect++) {
         URL_COMPONENTS parts = { 0 };
         parts.dwStructSize = sizeof(parts);
@@ -18,12 +19,12 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
         parts.lpszUrlPath = path;
         parts.dwUrlPathLength = 2048;
 
-        if (!WinHttpCrackUrl(url, 0, 0, &parts))
+        if (!WinHttpCrackUrl(config->url, 0, 0, &parts))
             return FALSE;
 
         BOOL isHttps = (parts.nScheme == INTERNET_SCHEME_HTTPS);
 
-        HINTERNET hSession = WinHttpOpen(TEXT("NSCJ/1.0"),
+        HINTERNET hSession = WinHttpOpen(L"NSCJ/1.0",
             WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
             WINHTTP_NO_PROXY_NAME,
             WINHTTP_NO_PROXY_BYPASS, 0);
@@ -41,7 +42,7 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
 
         HINTERNET hRequest = WinHttpOpenRequest(
             hConnect,
-            method,
+            config->method,
             parts.lpszUrlPath,
             NULL,
             WINHTTP_NO_REFERER,
@@ -54,36 +55,23 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
             return FALSE;
         }
 
-        if (username && username[0]) {
+        if (config->username && config->password) {
             WinHttpSetCredentials(
                 hRequest,
                 WINHTTP_AUTH_TARGET_SERVER,
                 WINHTTP_AUTH_SCHEME_BASIC,
-                username,
-                password,
+                config->username,
+                config->password,
                 NULL);
         }
 
-        char* body_utf8 = NULL;
-        DWORD body_len = 0;
-
-#ifdef UNICODE
-        if (body && body[0]) {
-            int len = WideCharToMultiByte(CP_UTF8, 0, body, -1, NULL, 0, NULL, NULL);
-            body_utf8 = (char*)malloc(len);
-            WideCharToMultiByte(CP_UTF8, 0, body, -1, body_utf8, len, NULL, NULL);
-            body_len = len - 1; // exclude null terminator
-        }
-#else
-        body_utf8 = body;
-        body_len = body ? (DWORD)strlen(body) : 0;
-#endif
+        DWORD body_len = lstrlenA(config->body);
 
         BOOL sent = WinHttpSendRequest(
             hRequest,
-            headers && headers[0] ? headers : WINHTTP_NO_ADDITIONAL_HEADERS,
+            config->headers ? config->headers : WINHTTP_NO_ADDITIONAL_HEADERS,
             -1,
-            body_utf8 ? body_utf8 : WINHTTP_NO_REQUEST_DATA,
+            config->body ? config->body : WINHTTP_NO_REQUEST_DATA,
             body_len,
             body_len,
             0);
@@ -107,7 +95,7 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
             NULL);
 
         if (status == 301 || status == 302 || status == 307 || status == 308) {
-            TCHAR location[2048];
+            WCHAR location[2048];
             DWORD len = sizeof(location);
 
             if (WinHttpQueryHeaders(
@@ -117,7 +105,7 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
                 location,
                 &len,
                 NULL)) {
-                lstrcpy(url, location); // follow redirect
+                http_config_set_url(config, location);
 
                 WinHttpCloseHandle(hRequest);
                 WinHttpCloseHandle(hConnect);
@@ -167,12 +155,10 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
         buffer[total] = 0;
 
 #ifdef UNICODE
-        // Convert char buffer -> TCHAR
         size_t wlen = MultiByteToWideChar(CP_UTF8, 0, buffer, -1, NULL, 0);
         *response = (TCHAR*)malloc(wlen * sizeof(TCHAR));
         MultiByteToWideChar(CP_UTF8, 0, buffer, -1, *response, (int)wlen);
         GlobalFree(buffer);
-        if (body_utf8) free(body_utf8);
 #else
         *response = (TCHAR*)buffer;
 #endif
@@ -185,4 +171,157 @@ http_fetch(_In_ TCHAR* url, _In_ TCHAR* method, _In_ TCHAR* headers, _In_ TCHAR*
     }
 
     return FALSE;
+}
+
+
+//==========================================================
+http_config_t*
+http_config_new() {
+    http_config_t* config = (http_config_t*)malloc(sizeof(http_config_t));
+    assert(config);
+
+    config->url = NULL;
+    config->method = NULL;
+    config->headers = NULL;
+    config->body = NULL;
+    config->username = NULL;
+    config->password = NULL;
+
+    http_config_set_method(config, TEXT("GET"));
+
+    return config;
+}
+
+//==========================================================
+VOID
+http_config_set_url(_In_ http_config_t* this, _In_ LPCTSTR url) {
+    assert(this);
+    assert(url);
+
+    if (this->url) free(this->url);
+#ifdef UNICODE
+    int len = lstrlenW(url) + 1;
+    this->url = (PWCHAR)malloc(sizeof(WCHAR) * len);
+    assert(this->url);
+    lstrcpyW(this->url, url);
+#else
+    int len = MultiByteToWideChar(CP_UTF8, 0, url, -1, NULL, 0);
+    this->url = (PWCHAR)malloc(sizeof(WCHAR) * len);  // sizeof(WCHAR) * len, not just len
+    assert(this->url);
+    MultiByteToWideChar(CP_UTF8, 0, url, -1, this->url, len);
+#endif
+}
+
+//==========================================================
+VOID
+http_config_set_method(_In_ http_config_t* this, _In_ LPCTSTR method) {
+    assert(this);
+    assert(method);
+
+    if (this->method) free(this->method);
+#ifdef UNICODE
+    int len = lstrlenW(method) + 1;
+    this->method = (PWCHAR)malloc(sizeof(WCHAR) * len);
+    assert(this->method);
+    lstrcpyW(this->method, method);
+#else
+    int len = MultiByteToWideChar(CP_UTF8, 0, method, -1, NULL, 0);
+    this->method = (PWCHAR)malloc(sizeof(WCHAR) * len);  // sizeof(WCHAR) * len, not just len
+    assert(this->method);
+    MultiByteToWideChar(CP_UTF8, 0, method, -1, this->method, len);
+#endif
+}
+
+//==========================================================
+VOID
+http_config_set_headers(_In_ http_config_t* this, _In_ LPCTSTR headers) {
+    assert(this);
+    assert(headers);
+
+    if (this->headers) free(this->headers);
+#ifdef UNICODE
+    int len = WideCharToMultiByte(CP_UTF8, 0, headers, -1, NULL, 0, NULL, NULL);
+    this->headers = (PCHAR)malloc(len);
+    assert(this->headers);
+    WideCharToMultiByte(CP_UTF8, 0, headers, -1, this->headers, len, NULL, NULL);
+#else
+    int len = lstrlenA(headers) + 1;  // +1 for null terminator
+    this->headers = (PCHAR)malloc(len);
+    assert(this->headers);
+    lstrcpyA(this->headers, headers);
+#endif
+}
+
+//==========================================================
+VOID
+http_config_set_body(_In_ http_config_t* this, _In_ LPCTSTR body) {
+    assert(this);
+    assert(body);
+
+    if (this->body) free(this->body);
+#ifdef UNICODE
+    int len = WideCharToMultiByte(CP_UTF8, 0, body, -1, NULL, 0, NULL, NULL);
+    this->body = (PCHAR)malloc(len);
+    assert(this->body);
+    WideCharToMultiByte(CP_UTF8, 0, body, -1, this->body, len, NULL, NULL);
+#else
+    int len = lstrlenA(body) + 1;  // +1 for null terminator
+    this->body = (PCHAR)malloc(len);
+    assert(this->body);
+    lstrcpyA(this->body, body);
+#endif
+}
+
+//==========================================================
+VOID
+http_config_set_username(_In_ http_config_t* this, _In_ LPCTSTR username) {
+    assert(this);
+    assert(username);
+
+    if (this->username) free(this->username);
+#ifdef UNICODE
+    int len = lstrlenW(username) + 1;
+    this->username = (PWCHAR)malloc(sizeof(WCHAR) * len);
+    assert(this->username);
+    lstrcpyW(this->username, username);
+#else
+    int len = MultiByteToWideChar(CP_UTF8, 0, username, -1, NULL, 0);
+    this->username = (PWCHAR)malloc(sizeof(WCHAR) * len);  // sizeof(WCHAR) * len, not just len
+    assert(this->username);
+    MultiByteToWideChar(CP_UTF8, 0, username, -1, this->username, len);
+#endif
+}
+
+//==========================================================
+VOID
+http_config_set_password(_In_ http_config_t* this, _In_ LPCTSTR password) {
+    assert(this);
+    assert(password);
+
+    if (this->password) free(this->password);
+#ifdef UNICODE
+    int len = lstrlenW(password) + 1;
+    this->password = (PWCHAR)malloc(sizeof(WCHAR) * len);
+    assert(this->password);
+    lstrcpyW(this->password, password);
+#else
+    int len = MultiByteToWideChar(CP_UTF8, 0, password, -1, NULL, 0);
+    this->password = (PWCHAR)malloc(sizeof(WCHAR) * len);  // sizeof(WCHAR) * len, not just len
+    assert(this->password);
+    MultiByteToWideChar(CP_UTF8, 0, password, -1, this->password, len);
+#endif
+}
+
+//==========================================================
+VOID
+http_config_free(_In_ http_config_t* config) {
+    if (!config)
+        return;
+    if (config->url) free(config->url);
+    if (config->method) free(config->method);
+    if (config->headers) free(config->headers);
+    if (config->body) free(config->body);
+    if (config->username) free(config->username);
+    if (config->password) free(config->password);
+    free(config);
 }
