@@ -53,6 +53,8 @@ foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
 endforeach()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    include(CTest)
+
     find_package(cmocka CONFIG REQUIRED)
 
     set(TEST_SRC
@@ -79,11 +81,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     if (UNICODE)
         target_compile_definitions(nscj_test PRIVATE UNICODE _UNICODE)
     endif()
- 
-    foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
-        string(TOUPPER ${CONFIG} CONFIG_UPPER)
-        set_target_properties(nscj_test PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/${OUTPUT_PATH}
-        )
-    endforeach()
+
+    add_test(NAME nscj_test COMMAND nscj_test)
 endif()
