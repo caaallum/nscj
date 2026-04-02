@@ -1,0 +1,55 @@
+name: Test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        include:
+          - name: x86-unicode
+            unicode: ON
+            arch: Win32
+            triplet: x86-windows-static
+          - name: x86-ansi
+            unicode: OFF
+            arch: Win32
+            triplet: x86-windows-static
+          - name: x64-unicode
+            unicode: ON
+            arch: x64
+            triplet: x64-windows-static
+          - name: x64-ansi
+            unicode: OFF
+            arch: x64
+            triplet: x64-windows-static
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+
+      - name: Configure
+        run: cmake -S . -B build ^
+          -DUNICODE=${{ matrix.unicode }} ^
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ^
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake ^
+          -DCMAKE_BUILD_TYPE=Debug ^
+          -A ${{ matrix.arch }}
+
+      - name: Build tests
+        run: cmake --build build --config Debug
+
+      - name: Run tests
+        run: ctest --test-dir build -C Debug --output-on-failure
