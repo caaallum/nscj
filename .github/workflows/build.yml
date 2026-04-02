@@ -59,7 +59,7 @@ jobs:
 
   package:
     runs-on: windows-latest
-    needs: [build, test]
+    needs: [build]
     steps:
       - name: Download all builds
         uses: actions/download-artifact@v4
