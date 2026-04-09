@@ -240,16 +240,18 @@ http_config_set_headers(_In_ http_config_t* this, _In_ LPCTSTR headers) {
 
     if (this->headers) free(this->headers);
 #ifdef UNICODE
-    int len = WideCharToMultiByte(CP_UTF8, 0, headers, -1, NULL, 0, NULL, NULL);
-    this->headers = (PCHAR)malloc(len);
+    int len = lstrlenW(headers) + 1;
+    this->headers = (PWCHAR)malloc(sizeof(WCHAR) * (len + 3));
     assert(this->headers);
-    WideCharToMultiByte(CP_UTF8, 0, headers, -1, this->headers, len, NULL, NULL);
+    lstrcpyW(this->headers, headers);
 #else
-    int len = lstrlenA(headers) + 1;  // +1 for null terminator
-    this->headers = (PCHAR)malloc(len);
+    int len = MultiByteToWideChar(CP_UTF8, 0, headers, -1, NULL, 0);
+    this->headers = (PWCHAR)malloc(sizeof(WCHAR) * (len + 3));  // sizeof(WCHAR) * len, not just len
     assert(this->headers);
-    lstrcpyA(this->headers, headers);
+    MultiByteToWideChar(CP_UTF8, 0, headers, -1, this->headers, len);
 #endif
+
+    lstrcatW(this->headers, L"\r\n");
 }
 
 //==========================================================

@@ -4,7 +4,7 @@
 typedef struct {
     PWCHAR url;
     PWCHAR method;
-    PCHAR headers;
+    PTCHAR headers;
     PCHAR body;
     PWCHAR username;
     PWCHAR password;
