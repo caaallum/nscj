@@ -4,7 +4,7 @@
 typedef struct {
     PWCHAR url;
     PWCHAR method;
-    PTCHAR headers;
+    PWCHAR headers;
     PCHAR body;
     PWCHAR username;
     PWCHAR password;
@@ -55,6 +55,14 @@ VOID http_config_set_method(_In_ http_config_t* this, _In_ LPCTSTR method);
  * \param headers HTTP headers string (e.g. "Content-Type: application/json\r\n"), to be copied into http_config_t
  **********************************************************/
 VOID http_config_set_headers(_In_ http_config_t* this, _In_ LPCTSTR headers);
+
+/**********************************************************
+ * \brief Add a header to http_config_t headers field
+ * 
+ * \param this Pointer to http_config_t
+ * \param header HTTP header string (e.g. "Authorization: Bearer <token>\r\n"), to be appended to http_config_t headers
+ **********************************************************/
+VOID http_config_add_header(_In_ http_config_t* this, _In_ LPCTSTR header);
 
 /**********************************************************
  * \brief Set http_config_t body field

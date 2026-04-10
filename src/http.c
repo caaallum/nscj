@@ -256,6 +256,55 @@ http_config_set_headers(_In_ http_config_t* this, _In_ LPCTSTR headers) {
 
 //==========================================================
 VOID
+http_config_add_header(_In_ http_config_t* this, _In_ LPCTSTR header) {
+    assert(this);
+    assert(header);
+
+#ifdef UNICODE
+    int header_len = lstrlenW(header);
+    int existing_len = this->headers ? lstrlenW(this->headers) : 0;
+    // +3 for \r\n and null terminator
+    int new_len = existing_len + header_len + 3;
+
+    PWCHAR new_headers = (PWCHAR)malloc(sizeof(WCHAR) * new_len);
+    assert(new_headers);
+
+    if (this->headers) {
+        lstrcpyW(new_headers, this->headers);
+        free(this->headers);
+    }
+    else {
+        new_headers[0] = L'\0';
+    }
+
+    lstrcatW(new_headers, header);
+    lstrcatW(new_headers, L"\r\n");
+    this->headers = new_headers;
+#else
+    int header_len = MultiByteToWideChar(CP_UTF8, 0, header, -1, NULL, 0) - 1; // exclude null
+    int existing_len = this->headers ? lstrlenW(this->headers) : 0;
+    int new_len = existing_len + header_len + 3;
+
+    PWCHAR new_headers = (PWCHAR)malloc(sizeof(WCHAR) * new_len);
+    assert(new_headers);
+
+    if (this->headers) {
+        lstrcpyW(new_headers, this->headers);
+        free(this->headers);
+    }
+    else {
+        new_headers[0] = L'\0';
+    }
+
+    // Convert and append at the right offset
+    MultiByteToWideChar(CP_UTF8, 0, header, -1, new_headers + existing_len, header_len + 1);
+    lstrcatW(new_headers, L"\r\n");
+    this->headers = new_headers;
+#endif
+}
+
+//==========================================================
+VOID
 http_config_set_body(_In_ http_config_t* this, _In_ LPCTSTR body) {
     assert(this);
     assert(body);

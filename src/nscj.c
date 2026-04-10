@@ -82,7 +82,7 @@ NSISFUNC(Set) {
         }
         else if (lstrcmpi(arg, TEXT("/header")) == 0) {
             popstring(arg);
-            http_config_set_headers(http_config, arg);
+            http_config_add_header(http_config, arg);
         }
         else if (lstrcmpi(arg, TEXT("/user")) == 0) {
             popstring(arg);
