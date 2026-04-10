@@ -65,7 +65,7 @@ http_fetch(_In_ http_config_t* config, _Out_ TCHAR** response) {
                 NULL);
         }
 
-        DWORD body_len = lstrlenA(config->body);
+        DWORD body_len = config->body ? lstrlenA(config->body) : 0;
 
         BOOL sent = WinHttpSendRequest(
             hRequest,
